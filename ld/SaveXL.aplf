@@ -1,0 +1,88 @@
+ r←SaveXL args;⎕ML;XL;books;range;sheet;book;file;i;Workbook;opened;sheets;Sheet;Range;created;data;eis;topleft;cell
+⍝ Save 2-dimensional matrix to (book,sheet,topleft). Selections can be made or elided (⍬) at each level:
+⍝                                                                                                mkrom 2008
+⍝ book=⍬ means ActiveWorkbook, sheet=⍬ means ActiveSheet, topleft=⍬ means CurrentCell
+⍝
+⍝ Examples:
+⍝
+⍝ SaveXL Data                                     (At CurrentCell in active Sheet)
+⍝ SaveXL Data ⍬ ⍬ 'B7'                            (At B2 in CurrentSheet)
+⍝ SaveXL Data ⍬ 'Sheet2' 'B2'                     (At B2 in Sheet2 of ActiveWorkbook)
+⍝ SaveXL Data 'C:\Temp\Book1.xlsx' 'Sheet1' 'B2'  (Selection at all levels)
+⍝    If workbook/sheet do not exist, they will be created.
+⍝    If workbook is created, and sheet is named, it will ONLY have the named sheet
+ ⎕ML←1
+ :If 'Win'≢3↑⊃'.'⎕WG'APLVersion'
+     ⎕←'This function runs on Windows only'
+     →0
+ :EndIf
+
+ :If 2=⍴⍴args ⋄ args←,⊂args ⋄ :EndIf ⍝ Just a data matrix
+ (data book sheet range)←4↑args,(⍴,args)↓(1 1⍴⊂'Wot?')⍬ ⍬ ⍬
+
+ r←XL←⎕NEW'OleClient'(⊂'ClassName' 'Excel.Application')
+ XL.DisplayAlerts←0 ⍝ avoid being prompted for anything
+ opened←created←0 ⍝ we did not open a book
+
+⍝ --- Select, Open or Create WorkBook ---
+
+ :If 0=⍴book ⍝ Current Book
+     :If 0=XL.Workbooks.Count
+         Workbook←XL.Workbooks.Add ⍬
+         created←1
+     :Else
+         Workbook←XL.ActiveWorkbook
+     :EndIf
+ :Else
+     :If 0≠XL.Workbooks.Count ⍝ Currently open books
+         books←⌷XL.Workbooks
+     :AndIf (⍴books)≥i←books.FullName⍳⊂book ⍝ Already open?
+         Workbook←i⊃books
+     :Else
+         :Trap 11
+             Workbook←XL.Workbooks.Open⊂book
+             opened←1
+         :Else
+             Workbook←XL.Workbooks.Add ⍬
+             created←1
+         :EndTrap
+     :EndIf
+ :EndIf
+
+ ⍝ --- Select or Add Sheet ---
+ :If 0=⍴,sheet ⍝ Current Sheet
+     Sheet←XL.ActiveSheet
+ :ElseIf (⊂sheet)∊(⌷Workbook.Sheets).Name
+     Sheet←Workbook.Sheets[⊂sheet]
+ :Else ⍝ Sheet not found, must be added
+     Sheet←Workbook.Sheets.Add ⍬
+     :If created
+         sheets←⌷Workbook.Sheets
+         ((~sheets.Name∊⊂Sheet.Name)/sheets).Delete ⍝ Delete all sheets in new book
+     :EndIf
+     Sheet.Name←sheet
+ :EndIf
+
+ ⍝ --- Select Range ---
+ :If 0=⍴range ⋄ topleft←1 1
+ :Else
+     topleft←Sheet.Range[⊂range].(Row Column)
+ :EndIf
+
+ cell←{' '~⍨((2⊃⍵)⊃,(' ',⎕A)∘.,⎕A),⍕1⊃⍵}
+ range←(cell topleft),':',cell topleft+(¯2↑1,⍴data)-1
+ Sheet.Range[⊂range].Value2←data
+
+ :If opened∨created  ⍝ Save and Close it if we opened it
+     :Trap 0 ⍝ If workbook somehow damaged
+         :If created
+           ⍝ We used to change xlsx format (51) into xls (56), then M$ changed that to 52/57
+           ⍝ We now save in native format
+           ⍝ :If Workbook.FileFormat=51 ⋄ Workbook.FileFormat←56 ⋄ :EndIf
+             Workbook.SaveAs⊂book
+         :Else
+             Workbook.Save
+         :EndIf
+         Workbook.Close ⍬
+     :EndTrap
+ :EndIf
