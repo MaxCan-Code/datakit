@@ -1,0 +1,34 @@
+:Namespace d    ⍝ data(base) (async-shell-command "RIDE_INIT=SERVE::8080 LOAD=. dyalog")
+    :Namespace u    ⍝ utils
+        ⍝   _fmt←{
+        #.B←B←{⍵ ⍵⍵⍨⍺⍺ ⍺} ⋄ #.(⎕PW ⎕ML u d)←30000 0 ⎕THIS ##
+        _i←'↑⍪-B↑ ⊂B⌷ ⍳∘≢,⍪ ⍴,≡ ⊢⌷⍨∘⊂∘⍋⌷⍤1'⍨ ⋄ c←1↓¨⊢⊂⍨⊢=⊃ ⋄ wor←~⍨∘⍳∘≢⊂B⌷⊢
+        V←{⍺←⊃⎕RSI ⋄ (tmp←⍺.⎕NS ⍬).output←⍵ ⋄ tmp.⎕ED⍠'ReadOnly' 1&'output'}
+        u←⎕SE.Dyalog.Utils ⋄ r←u.repObj ⋄ d←0 1 0 u.disp⊢ ⋄ v←V d ⋄ vu←V ⎕SE.UCMD
+        f←⎕SE.UCMD'add ',⊢⊣⎕FX∘⎕OR ⋄ se←{⎕SE.UCMD¨'rows on -fo=9' 'box -t=tree'}
+        fx_82←#.⎕FX∘('\n'⎕R'\r'⍠'Mode' 'M')((⊂⍋⎕NXLATE 0)⌷⎕AVU⍨)(¯1↓⊃)⍤⎕NGET⊢
+        nget_82←(⎕NUNTIE⊢⎕NREAD⍤,∘82 ¯1 0)⎕NTIE∘0 ⋄ x←#.{{⎕CLEAR}⎕EX ⎕NL-⍳11}
+        ⍝   }
+    :EndNamespace
+    ⍝   _fmt←{
+    ⍝         ┌─  pick based on m/d  ─┐
+    gfn←'j:\',('meta\' 'data\'⊃⍨'md'⍳⊣),'\'@(∊∘'.')⍤⊢  ⍝ get file name
+    gdt←{⍺←4 ⋄ ,⎕CSV⍠'Separator' ' '⊢('d'gfn ⍵)⍬ ⍺} ⋄ gmd←⊃∘⎕NGET'm'∘gfn
+    _npf←{⍺←'_'@(=∘' ')⊢'#.',2⊃⎕NPARTS ⍵ ⋄ ⍺ ⍺⍺ ⍵} ⍝ 2⊃⎕NPARTS ⍺⍺ filename
+    ncf←{⍎⍞←⍺,'←⎕NEW ',((⎕CY⍨⊢⊢)'ComponentFile'),u.r ⍵}_npf ⋄ csv_hdr←{_←(⍞←⍎⍺ ⎕NS ⍬).(d h)←⎕CSV ⍵ ⍬ 4 1}_npf
+    qXL←{⍺←0 ⋄ 1≡⍺:(##.ld.SaveXL ⍵).Visible←1 ⋄ ⍺{⍎⍞←⍺,'←##.ld.LoadXL',u.r ⍵'*'}_npf ⍵} ⍝ ⎕WX←3 ⍝ SaveXL[22] r←XL
+    sqa_cur←{sqa,⍥⊂2⊃sqa.CursorName con⊣(sqa←(⎕SE.SALT.Load'Tool').New'sqapl').Connect con'DB'('ReadOnly' 1)⊣('Columnwise' 1)⊣con←⍵}
+    sqaDo←{sqa.{(Close⊢(1 1∘⊃¨2 2⊃0 Describe⊢),∘⊃∘({⎕NULL@(⍸⍺)⊢⍵}/)1⊃¨3 2 u.I Fetch∘{⍵('Nulls' 1)})c⊣ExecDirect⊢(c q)←⍵}cur ⍵⊣(sqa cur)←sqa_cur'C1'}
+    wrap←1⌽')(',1↓1⌽∘⊃∘(,/)''','''∘,¨
+    __ap←'()'(1⌽⌽⍤⊣,⊢)∘⊃∘((⊣,',',⊢)/)''''(,,⊣)¨⊢
+    ⍝   }
+      tests←{⎕←'⎕SE.out.init ⋄ ⍵'
+          ⎕←1 qXL 3 42⍴'421' 231 '342' 'fas' 343 2 342 432 'fdskal' 990
+          ⎕←(⊃,⍪)sqaDo'SELECT ID,Code,EndDate FROM Info WHERE ID IN',wrap'M.CA.K.L' 'M.JA.K.L'
+          ⎕←(⊃,⍪)sqaDo'SELECT * FROM Meta WHERE ID IN',wrap'M.CA.K.L' 'M.JA.K.L'
+          ⎕←(⊃,⍪)sqaDo'SELECT * FROM Info WHERE ID IN',wrap'M.CA.K.L' 'M.JA.K'
+          ⎕←(⊃,⍪)sqaDo'SELECT * FROM Vendors'
+          ⎕←(⍉⊃,⍪)sqaDo'SELECT TOP 0 * FROM Meta'
+          sqaNotes←{⍴¨tbls←sqa.Tables con ⋄ ⍴¨tc←sqa.(Tables,⍥⊂Columns)con⊣'⍝ very slow'}
+          ⍞←'⎕se.out.stop'}
+:EndNamespace
