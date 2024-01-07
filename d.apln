@@ -1,0 +1,26 @@
+:Namespace d    ⍝ data(base) ln -s . ~/dyalog.files/StartupSession
+    :Namespace u    ⍝ utils
+        ⍝   _fmt←{
+        #.(⎕PW ⎕ML u d)←30000 0 ⎕THIS ##
+        __i←(↑⍪-⍛↑)(⊂⍛⌷)(⍳∘≢,⍪)(⍴,≡)(⊢⌷⍨∘⊂∘⍋⌷⍤1)(1↓¨⊢⊂⍨⊢=⊃)(~⍨∘⍳∘≢⊂⍛⌷⊢)
+        u←⎕SE.Dyalog.Utils ⋄ r←u.repObj ⋄ d←0 1 0∘u.disp
+        #.fm←⎕SE.Link.Add⊢⊣⎕FX∘⎕OR ⋄ ##.##.Run←{⎕SE.UCMD¨'rows on -fo=9' 'box -t=tree'⍨⍵}
+        fx←#.⎕FX∘('\n'⎕R'\r'⍠'Mode' 'M')¯1↓⊃∘(ngxl←⊢⎕NGET⍨⎕AVU⌷⍨∘⊂∘⍋∘⎕NXLATE 0⍨)
+        ⍝   }
+    :EndNamespace
+    ⍝   _fmt←{
+    csv←⎕CSV⊂,⍬ 4 1⍨
+    xl←##.ld.{⍺←0 ⋄ ⍺:(SaveXL ⍵).Visible←1 ⋄ LoadXL ⍵'*'} ⍝ ⎕WX←3 ⍝ SaveXL[22] r←XL
+    sqa_cur←{sqa,⍥⊂2⊃sqa.CursorName con⊣(sqa←(⎕SE.SALT.Load'Tool').New'sqapl').Connect con'MyODBCSource'('ReadOnly' 1)⊣('Columnwise' 1)⊣con←⍵}
+    ⍝                                            ┌─ (mask)(rslt) ─┐
+    sqaDo←{sqa.(Close⊢(1 1∘⊃¨2 2⊃0 Describe⊃)⍪∘⊃∘({⎕NULL@(⍺⍨)⍵}⍤1/)1⊃¨(⊂3 2)⌷Fetch∘{⍵,⍥⊂'Nulls' 1}∘⊃⊣ExecDirect)cur ⍵⊣(sqa cur)←sqa_cur'C1'}
+    wrap←1⌽')(',1↓1⌽∘⊃∘(,/)''','''∘,¨
+    __ap←1⌽')(',1↓1⌽∘⊃''',''',/∘,⍤(⊂⍛,)⍪
+    sfmt←1↓(⊂1↓¨@2,¨∘⌽)@1 4⍤,⍨∘(⍉¨1 1⊂⍉)
+    ⍝   }
+      tests←{⎕←1 xl 3 42⍴'firstname' 'salary' 'Fred' 10000 'Sue' 12000 '420'
+          ⎕←'MyODBCSource' 'Employees' 'upsert where key=firstname'##.ld.SaveSQL⍤sfmt 3 2⍴'firstname' 'salary' 'Fred' 10000 'Sue' 12000
+          ⎕←sqaDo'SELECT firstname,salary FROM Employees WHERE firstname IN',wrap'Fred' 'Sue'
+          ⎕←sqaDo'SELECT TOP 0 * FROM Employees'
+          sqaNotes←{⍴¨tbls←sqa.Tables con ⋄ ⍴¨tc←sqa.(Tables,⍥⊂Columns)con⊣'⍝ very slow'}}
+:EndNamespace
