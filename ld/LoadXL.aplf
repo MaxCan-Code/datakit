@@ -1,0 +1,57 @@
+ r←LoadXL args;XL;books;range;sheet;book;file;i;Workbook;opened;sheets;Sheet;Range;⎕ML;⎕IO
+⍝ Load Data from a book,sheet,range. Selections can be made or elided (⍬) at each level:
+⍝                                                                                 mkrom 2008
+⍝ book=⍬ means ActiveWorkbook, sheet=⍬ means ActiveSheet, range=⍬ means UsedRange
+⍝    ActiveSheet='*' means all sheets
+⍝
+⍝ Examples:
+⍝
+⍝ LoadXL ⍬                                      (UsedRange of active Sheet)
+⍝ LoadXL ⍬ '*'                                  (UsedRange of all sheets in ActiveWorkbook)
+⍝ LoadXL 'C:\Temp\Book1.xlsx' 'Sheet1' 'A1:C4'  (Selection at all levels)
+
+ ⎕IO ⎕ML←1 0
+ args←,(⊂⍣((0≠⊃⍴,args)∧1=≡args))args
+ book sheet range←3↑args,⍬ ⍬ ⍬
+
+ XL←⎕NEW'OleClient'(⊂'ClassName' 'Excel.Application')
+ opened←0 ⍝ We did not open a book
+
+⍝ --- Select or Open Book ---
+
+ :If 0=⍴book ⍝ Current Book
+     Workbook←XL.ActiveWorkbook
+ :Else
+     :If 0≠XL.Workbooks.Count ⍝ Currently open books
+         books←⌷XL.Workbooks
+     :AndIf (⍴books)≥i←books.FullName⍳⊂book ⍝ Already open?
+         Workbook←i⊃books
+     :Else
+         Workbook←XL.Workbooks.Open⊂book
+         opened←1
+     :EndIf
+ :EndIf
+
+ ⍝ --- Select Sheet(s) ---
+ :If 0=⍴,sheet ⍝ Current Sheet
+     Sheet←XL.ActiveSheet
+ :Else
+     :If (,sheet)≡,'*' ⋄ Sheet←⌷Workbook.Sheets
+     :Else ⋄ Sheet←Workbook.Sheets[⊂sheet] ⋄ :EndIf
+ :EndIf
+
+ ⍝ --- Select Range ---
+ :If 0=⍴range
+     Range←Sheet.UsedRange
+ :Else
+     Range←(,Sheet).{Range[⊂⍵]}⊂range ⍝ dfn needed in case Sheet has several elements
+ :EndIf
+
+ r←Range.{0::0 0⍴0 ⋄ Value2}0
+
+ :If opened  ⍝ Close it if we opened it
+     :Trap 0 ⍝ If workbook somehow damaged and close fails
+         Workbook.Saved←1
+         Workbook.Close ⍬
+     :EndTrap
+ :EndIf

@@ -1,0 +1,18 @@
+:Namespace d    ⍝ data(base) ln -s . ~/dyalog.files/StartupSession
+    ⍝   _fmt←{
+    #.⎕PW←¯1+2*15
+    __i←(↑⍪-⍛↑)(⊂⍛⌷)(⍪∘⍳∘≢⌷,)(⍴,≡)(⊢⌷⍨∘⊂∘⍋⌷⍤1)(1↓¨⊢⊂⍨⊢=⊃)(~⍨∘⍳∘≢⊂⍛⌷⊢)(⎕CSV⍠2⊂,⍬ 4 1⍨)
+    ⎕SE.(u←Dyalog.Utils) ⋄ ⎕SE.u.(r←repObj) ⋄ ⎕SE.u.(d←1 1 0 1∘disp)
+    ⍝ #.fm←⎕SE.Link.Add⊢⊣⎕FX∘⎕OR
+    fx←('\n'⎕R'\r'⍠'Mode' 'M')¯1↓⊃∘(ngxl←⊢⎕NGET⍨⎕AVU⌷⍨∘⊂∘⍋∘⎕NXLATE 0⍨)
+
+    xl←##.ld.{⍺←0 ⋄ ⍺:(SaveXL ⍵).Visible←1 ⋄ LoadXL ⍵'*'} ⍝ ⎕WX←3 ⍝ SaveXL[22] r←XL
+      sqaDo←{sqa_cur←{_←(sqa←(⎕SE.SALT.Load'Tool').New'sqapl').Connect con'MyODBCSource'('Columnwise' 1)⊣con←⍵
+              sqa,⍥⊂2⊃sqa.CursorName con}
+          (sqa cur)←sqa_cur'C1' ⍝               ┌─ (mask)(rslt) ─┐
+          sqa.(Close⊢(1 1∘⊃¨2 2⊃0 Describe⊃)⍪∘⊃∘({⎕NULL@(⍺⍨)⍵}⍤1/)1⊃¨(⊂3 2)⌷Fetch∘{⍵,⍥⊂'Nulls' 1}∘⊃⊣ExecDirect)cur ⍵}
+    wrap←1⌽')(',1↓1⌽∘⊃∘(,/)''','''∘,¨
+    __ap←1⌽')(',1↓1⌽∘⊃''',''',/∘,⍤(⊂⍛,)⍪
+    sfmt←1↓(⊂1↓¨@2,¨∘⌽)@1 4⍤,⍨∘(⍉¨1 1⊂⍉)
+    ⍝   }
+:EndNamespace
