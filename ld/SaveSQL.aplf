@@ -1,0 +1,130 @@
+ r←SaveSQL args;coldata;cols;columns;conn;connected;cursor;data;eis;exist;i;key;keys;mode;modekey;set;source;sql;step;table;type;update;values;where;wrap;z;⎕IO;⎕ML
+⍝ Save (data) (datasource) (table [cols]) [mode]                mkrom 2009
+⍝ If simple, datasource can be the name of an open connection, if nested
+⍝            it is expected to be a valid right argument to SQA.Connect
+⍝ table must be the name of an existing table, or a table name followed
+⍝       by a list of column names
+⍝ mode can be:
+⍝ insert (default)
+⍝ overwrite (delete then insert)
+⍝ upsert where key= (key has to be first column of data - will do update and insert)
+⍝ create table ... (full create table statement required)
+⍝
+⍝ The function returns 0 if all went well or an SQL return code
+⍝ Note: Inserts a single block of data using SQA.X, so not suitable for very large datasets
+⍝
+⍝ Examples:
+⍝
+⍝ Data←2 2⍴'Fred' 10000 'Sue' 12000
+⍝ SaveSQL Data'MyODBCSource' 'Employees' 'create table employees (firstname char(10), salary integer)'
+⍝ Data[;2]←10500 12500
+⍝ SaveSQL Data'MyODBCSource' 'Employees' 'overwrite'                                              ⍝ Deletes all records and reinserts
+⍝ Data←2 2⍴'Sue' 13000 'Pete' 15000
+⍝ SaveSQL Data'MyODBCSource' 'Employees' 'upsert where key=firstname'                             ⍝ Update Sue/Insert Pete using 1st data column as key
+⍝ Data←'firstname' 'salary' 'Sue' 13000 'Pete' 15000
+⍝ SaveSQL (1↓Data)'MyODBCSource'('Employees'(Data[1;]))'upsert where key=firstname'               ⍝ Update specific columns
+⍝ 'MyODBCSource' 'Employees' 'upsert where key=firstname'SaveSQL⍤(1↓,¨¨∘⊂∘⌽@1 4⍤,⍨∘(⍉¨1 1⊂⍉))Data ⍝ another way, same result
+
+ ⎕IO ⎕ML←1 0
+ eis←{,(⊂⍣((0≠⊃⍴,⍵)∧1=≡⍵))⍵} ⍝ Enclose if simple and not empty
+
+ (data source table mode)←4↑(eis args),⍬ ⍬ ⍬
+ connected←0
+
+ modekey←(¯1+(+\mode=' ')⍳2)↑mode ⍝ Take up to 2nd blank
+ :If 5=modekey←'insert' 'overwrite' 'upsert where' 'create table'⍳⊂modekey
+     'mode must be one of insert|overwrite|upsert where key=|create table ...'⎕SIGNAL 11
+ :EndIf
+ update←modekey=3
+ key←update/(mode⍳'=')↓mode ⍝ what follows = should be the key name (if update where=)
+
+ :If 1<|≡table ⋄ (table columns)←table
+ :Else ⋄ columns←''
+ :EndIf
+
+ columns←eis,columns
+ type←10|⎕DR¨coldata←↑¨↓[1]data ⍝ Last digit of datatype for each column
+ 'each data column must be either numeric or character'⎕SIGNAL(6∊type)/11
+ type←'CCIIF'[0 2 1 3 5⍳type] ⍝ Type is Char, Integer or Float
+ i←(type='C')/⍳⍴type
+ type[i]←type[i]{⍺,⍕1+¯1↑⍴⍵}¨coldata[i] ⍝ Add character width
+ type←':<'∘,¨type,¨':'
+
+ :If 9≠⎕NC'SQA' ⍝ SQAPL not present?
+     ⎕SHADOW'SQA' ⋄ 'SQA'⎕CY'sqapl' ⍝ Bring in a local copy
+ :EndIf
+
+ step←'Initialize SQAPL'
+ →(0<1⊃r←SQA.Init'')⍴ERROR
+
+ step←'Make Connection'
+
+ :If (⊂source)∊conn←⊃¨2 2⊃SQA.Tree'.' ⍝ Already connected
+     conn←source
+ :Else
+     source←eis source
+     conn←1⊃((⊂'SaveSQL'),¨⍕¨⍳1+⍴conn)~conn
+     →(0<1⊃r←SQA.Connect(⊂conn),source)⍴ERROR
+     connected←1 ⍝ We made a connection, remember to close
+ :EndIf
+
+ :If update∧0=⍴columns ⍝ Must have column names to update
+     step←'Read column names'
+     →(0<1⊃r←SQA.Columns conn table)⍴ERROR
+     columns←(1↓{⍵[;⍵[1;]⍳⊂'COLUMN_NAME']}2⊃r)~⊂key
+ :EndIf
+
+ :If 0≠⍴cols←columns ⍝ If columns were named
+     'number of column names does not correspond to data columns'⎕SIGNAL((⍴columns)≠(¯1↑⍴data)-update)/5
+ :EndIf
+
+ cursor←2⊃SQA.CursorName conn ⍝ Get a free cursor name
+
+ :Select modekey
+
+ :Case 2 ⍝ Overwrite
+     step←'Delete records'
+     →(0<1⊃r←SQA.Do conn('delete from ',table))⍴ERROR
+
+ :Case 3 ⍝ Upsert
+     step←'Read keys'
+     wrap←1⌽')(',1↓1⌽∘⊃∘(,/)''','''∘,¨
+     →(0<1⊃r←SQA.Do conn(⊃,/'select 'key' from 'table' where 'key' in '(wrap data[;1])))⍴ERROR
+     :If ∨/exist←data[;1]∊keys←3 1⊃r
+         set←' set ',1↓⊃,/',',¨columns,¨'=',¨1↓type
+         where←' where ',key,'=',1⊃type
+         sql←'update ',table,set,where
+         step←'Prepare Update Statement'
+         →(0<1⊃r←SQA.Prepare cursor sql('Bulk'(1↑⍴data)))⍴ERROR
+         step←'Execute Update Statement'
+         →(0<1⊃r←SQA.X cursor(1⌽exist⌿data))⍴ERROR
+         z←SQA.Close cursor
+         data←(~exist)⌿data ⍝ To be inserted
+     :EndIf
+     columns←(⊂key),columns ⍝ For final insert
+
+ :Case 4 ⍝ Create
+     step←'Create table'
+     →(0<1⊃r←SQA.Do conn mode)⍴ERROR
+ :EndSelect
+
+ :If 0≠⍴columns ⋄ cols←'(',(1↓⊃,/',',¨columns),')' ⋄ :EndIf
+ values←' values (',(1↓⊃,/',',¨type),')'
+
+ :If 0≠1↑⍴data ⍝ At the end we always insert (remaining data)
+     sql←'insert into ',table,cols,values
+     step←'Prepare Insert Statement'
+     →(0<1⊃r←SQA.Prepare cursor sql('Bulk'(1↑⍴data)))⍴ERROR
+     step←'Execute Insert Statement'
+     →(0<1⊃r←SQA.X cursor data)⍴ERROR
+     z←SQA.Close cursor
+ :EndIf
+
+DONE:
+ :If connected ⋄ z←SQA.Close conn ⋄ :EndIf
+ →0
+
+ERROR: ⍝ Bad return code should be in r
+ :If 2=⎕NC'cursor' ⋄ z←SQA.Close cursor ⋄ :EndIf
+ :If connected ⋄ z←SQA.Close conn ⋄ :EndIf
+ ('Error ',(⍕r),' at step ',step)⎕SIGNAL 11
